@@ -1,0 +1,42 @@
+rules:
+- name: check_employees_not_empty
+  description: Ensure employees table has at least one row
+  query: SELECT COUNT(*) FROM employees
+  operator: greater_than
+  expected_value: 0
+- name: check_id_unique
+  description: Check that id values are unique
+  query: "\n                    SELECT COUNT(*) FROM (\n                        SELECT\
+    \ id, COUNT(*) as count \n                        FROM employees \n          \
+    \              WHERE id IS NOT NULL\n                        GROUP BY id \n  \
+    \                      HAVING COUNT(*) > 1\n                    ) AS duplicates\n\
+    \                "
+  operator: equals
+  expected_value: 0
+- name: check_id_positive
+  description: Ensure id has no negative values
+  query: SELECT COUNT(*) FROM employees WHERE id < 0
+  operator: equals
+  expected_value: 0
+- name: check_salary_positive
+  description: Ensure salary has no negative values
+  query: SELECT COUNT(*) FROM employees WHERE salary < 0
+  operator: equals
+  expected_value: 0
+- name: check_salary_not_zero
+  description: Ensure salary has no zero values
+  query: SELECT COUNT(*) FROM employees WHERE salary = 0
+  operator: equals
+  expected_value: 0
+- name: check_hire_date_reasonable_past
+  description: Ensure hire_date contains no unreasonably old dates
+  query: SELECT COUNT(*) FROM employees WHERE hire_date < '1970-01-01'
+  operator: equals
+  expected_value: 0
+- name: check_email_valid_email
+  description: Ensure email contains valid email format
+  query: "\n                        SELECT COUNT(*) FROM employees \n            \
+    \            WHERE email IS NOT NULL \n                        AND email NOT LIKE\
+    \ '%@%.%'\n                    "
+  operator: equals
+  expected_value: 0

@@ -1,0 +1,53 @@
+{
+  "results": [
+    {
+      "rule_name": "check_employees_not_empty",
+      "is_valid": true,
+      "actual_value": 100,
+      "expected_value": 0,
+      "description": "Ensure employees table has at least one row"
+    },
+    {
+      "rule_name": "check_id_unique",
+      "is_valid": true,
+      "actual_value": 0,
+      "expected_value": 0,
+      "description": "Check that id values are unique"
+    },
+    {
+      "rule_name": "check_id_positive",
+      "is_valid": true,
+      "actual_value": 0,
+      "expected_value": 0,
+      "description": "Ensure id has no negative values"
+    },
+    {
+      "rule_name": "check_salary_positive",
+      "is_valid": true,
+      "actual_value": 0,
+      "expected_value": 0,
+      "description": "Ensure salary has no negative values"
+    },
+    {
+      "rule_name": "check_salary_not_zero",
+      "is_valid": true,
+      "actual_value": 0,
+      "expected_value": 0,
+      "description": "Ensure salary has no zero values"
+    },
+    {
+      "rule_name": "check_hire_date_reasonable_past",
+      "is_valid": true,
+      "actual_value": 0,
+      "expected_value": 0,
+      "description": "Ensure hire_date contains no unreasonably old dates"
+    },
+    {
+      "rule_name": "check_email_valid_email",
+      "is_valid": false,
+      "actual_value": 1,
+      "expected_value": 0,
+      "description": "Ensure email contains valid email format"
+    }
+  ]
+}
