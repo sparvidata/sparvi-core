@@ -26,6 +26,7 @@ Requires-Dist: click>=8.0.0
 Requires-Dist: pyyaml>=6.0
 Requires-Dist: rich>=10.0.0
 Requires-Dist: duckdb>=1.0.0
+Requires-Dist: duckdb-engine>=0.15.0
 Provides-Extra: snowflake
 Requires-Dist: snowflake-sqlalchemy; extra == "snowflake"
 Provides-Extra: postgres

@@ -39,6 +39,7 @@ setup(
         "pyyaml>=6.0",
         "rich>=10.0.0",
         "duckdb>=1.0.0",
+        "duckdb-engine>=0.15.0"
     ],
     extras_require={
         "snowflake": ["snowflake-sqlalchemy"],
