@@ -5,3 +5,4 @@ click>=8.0.0
 pyyaml>=6.0
 rich>=10.0.0
 duckdb>=1.0.0
+duckdb-sqlalchemy>=0.3.0
