@@ -1,9 +1,11 @@
 """
-Default validation rules generator for Sparvi
+Default validation rules generator for Sparvi, modified to use database-specific adapters
 """
 from typing import List, Dict, Any, Optional, Union
 import sqlalchemy as sa
-from sqlalchemy import inspect
+from sqlalchemy import inspect, create_engine
+
+from sparvi.db.adapters import get_adapter_for_connection
 
 
 def get_default_validations(connection_string: str, table_name: str) -> List[Dict[str, Any]]:
@@ -18,7 +20,8 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
         List of validation rule dictionaries
     """
     # Connect to database and get table metadata
-    engine = sa.create_engine(connection_string)
+    engine = create_engine(connection_string)
+    adapter = get_adapter_for_connection(engine)  # Get the appropriate SQL adapter
     inspector = inspect(engine)
 
     # Get column information
@@ -140,9 +143,9 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
     # 6. Check for negative values in numeric columns (if not explicitly allowed)
     for column in columns:
         col_type = str(column['type']).lower()
-        if ('int' in col_type or 'float' in col_type or 'numeric' in col_type or
-            'double' in col_type or 'decimal' in col_type) and 'unsigned' not in col_type:
 
+        # Use adapter to check if column is numeric
+        if adapter.is_numeric_type(col_type) and 'unsigned' not in col_type:
             # Skip columns likely to allow negative values based on common naming patterns
             negative_allowed_patterns = [
                 'balance', 'difference', 'delta', 'change', 'temperature',
@@ -160,9 +163,9 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
     # 7. Check for zero values in columns that typically shouldn't be zero
     for column in columns:
         col_type = str(column['type']).lower()
-        if ('int' in col_type or 'float' in col_type or 'numeric' in col_type or
-                'double' in col_type or 'decimal' in col_type):
 
+        # Use adapter to check if column is numeric
+        if adapter.is_numeric_type(col_type):
             non_zero_patterns = [
                 'price', 'amount', 'total', 'cost', 'rate', 'fee', 'tax',
                 'revenue', 'salary', 'income', 'expense'
@@ -179,7 +182,9 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
     # 8. Check for valid date ranges in date/datetime columns
     for column in columns:
         col_type = str(column['type']).lower()
-        if 'date' in col_type or 'time' in col_type:
+
+        # Use adapter to check if column is a date type
+        if adapter.is_date_type(col_type):
             # Validate no future dates for columns that typically shouldn't have future dates
             past_date_patterns = [
                 'birth', 'created', 'start', 'registered', 'joined', 'purchase',
@@ -206,14 +211,15 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
             # For columns that should be in the past (end dates)
             if any(term in column['name'].lower() for term in
                    ['end', 'finish', 'completed', 'closed', 'expiry', 'expiration']):
+                start_date_col = guess_start_date_column(column['name'], columns)
                 validations.append({
                     "name": f"check_{column['name']}_end_date_order",
                     "description": f"Ensure {column['name']} occurs after any start date (if applicable)",
                     "query": f"""
                         SELECT COUNT(*) FROM {table_name} 
                         WHERE {column['name']} IS NOT NULL 
-                        AND {guess_start_date_column(column['name'], columns)} IS NOT NULL
-                        AND {column['name']} < {guess_start_date_column(column['name'], columns)}
+                        AND {start_date_col} IS NOT NULL
+                        AND {column['name']} < {start_date_col}
                     """,
                     "operator": "equals",
                     "expected_value": 0
@@ -222,13 +228,15 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
     # 9. Check for string length constraints in varchar/text columns
     for column in columns:
         col_type = str(column['type']).lower()
-        if 'varchar' in col_type or 'char' in col_type or 'text' in col_type:
+
+        # Use adapter to check if column is a text type
+        if adapter.is_text_type(col_type):
             # If it's a defined length VARCHAR
             if hasattr(column['type'], 'length') and column['type'].length is not None:
                 validations.append({
                     "name": f"check_{column['name']}_max_length",
                     "description": f"Ensure {column['name']} does not exceed max length ({column['type'].length})",
-                    "query": f"SELECT COUNT(*) FROM {table_name} WHERE LENGTH({column['name']}) > {column['type'].length}",
+                    "query": f"SELECT COUNT(*) FROM {table_name} WHERE {adapter.length_function(column['name'])} > {column['type'].length}",
                     "operator": "equals",
                     "expected_value": 0
                 })
@@ -258,13 +266,16 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
                 })
 
             if 'phone' in column['name'].lower() or 'mobile' in column['name'].lower():
+                # Store the regex pattern as a separate string, not in an f-string
+                phone_regex = r'(\+)?[0-9][0-9 ()-]+'
+
                 validations.append({
                     "name": f"check_{column['name']}_valid_phone",
                     "description": f"Ensure {column['name']} contains valid phone number format",
                     "query": f"""
                         SELECT COUNT(*) FROM {table_name} 
                         WHERE {column['name']} IS NOT NULL 
-                        AND {column['name']} NOT SIMILAR TO '(\\+)?[0-9][0-9 ()-]+'
+                        AND NOT {adapter.regex_match(column['name'], phone_regex)}
                     """,
                     "operator": "equals",
                     "expected_value": 0
@@ -277,7 +288,7 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
                     "query": f"""
                         SELECT COUNT(*) FROM {table_name} 
                         WHERE {column['name']} IS NOT NULL 
-                        AND LENGTH(TRIM({column['name']})) < 3
+                        AND {adapter.length_function('TRIM(' + column['name'] + ')')} < 3
                     """,
                     "operator": "equals",
                     "expected_value": 0
@@ -286,8 +297,9 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
     # 10. Check for outliers in numeric columns (using standard deviation)
     for column in columns:
         col_type = str(column['type']).lower()
-        if ('int' in col_type or 'float' in col_type or 'numeric' in col_type or
-                'double' in col_type or 'decimal' in col_type):
+
+        # Use adapter to check if column is numeric
+        if adapter.is_numeric_type(col_type):
             validations.append({
                 "name": f"check_{column['name']}_outliers",
                 "description": f"Check for extreme outliers in {column['name']} (> 3 std deviations)",
@@ -295,7 +307,7 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
                     WITH stats AS (
                         SELECT 
                             AVG({column['name']}) as avg_val,
-                            STDDEV({column['name']}) as stddev_val
+                            {adapter.stddev_function(column['name'])} as stddev_val
                         FROM {table_name}
                         WHERE {column['name']} IS NOT NULL
                     )
@@ -350,7 +362,7 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
         ]
 
         # For string columns with categorical-like names
-        if ('varchar' in col_type or 'char' in col_type or 'text' in col_type) and \
+        if adapter.is_text_type(col_type) and \
                 any(pattern in column['name'].lower() for pattern in categorical_column_patterns):
             validations.append({
                 "name": f"check_{column['name']}_distribution",
@@ -387,7 +399,7 @@ def get_default_validations(connection_string: str, table_name: str) -> List[Dic
 
     # 15. For timestamp columns with an 'updated' pattern, check that they're not older than created timestamps
     timestamp_columns = [col['name'] for col in columns if
-                         'time' in str(col['type']).lower() or 'date' in str(col['type']).lower()]
+                         adapter.is_date_type(str(col['type']).lower())]
 
     updated_columns = [col for col in timestamp_columns if any(term in col.lower() for term in
                                                                ['updated', 'modified', 'edited', 'changed'])]
@@ -467,44 +479,3 @@ def get_outlier_threshold(table_name):
 
     # For small/reference tables
     return 5  # Allow only 5 outliers in small tables
-
-
-def add_default_validations(validation_manager, connection_string: str, table_name: str) -> dict:
-    """
-    Add default validations for a table to the validation manager, avoiding duplicates
-
-    Args:
-        validation_manager: Instance of ValidationManager
-        connection_string: Database connection string
-        table_name: Name of the table to add validations for
-
-    Returns:
-        Dictionary with count of rules added and skipped
-    """
-    # Get existing rules first
-    existing_rules = validation_manager.get_rules(table_name)
-    existing_rule_names = {rule['rule_name'] for rule in existing_rules}
-
-    # Generate potential new validations
-    validations = get_default_validations(connection_string, table_name)
-
-    count_added = 0
-    count_skipped = 0
-
-    for validation in validations:
-        try:
-            # Skip if rule with same name already exists
-            if validation['name'] in existing_rule_names:
-                count_skipped += 1
-                continue
-
-            validation_manager.add_rule(table_name, validation)
-            count_added += 1
-        except Exception as e:
-            print(f"Failed to add validation rule {validation['name']}: {str(e)}")
-
-    return {
-        "added": count_added,
-        "skipped": count_skipped,
-        "total": count_added + count_skipped
-    }

@@ -116,12 +116,54 @@ for result in results:
         print(f"  Expected: {result['expected_value']}, Actual: {result['actual_value']}")
 ```
 
-### Supported Databases
+## Multi-Database Support
 
-- DuckDB
-- PostgreSQL
-- Snowflake
-- More coming soon!
+Sparvi Core now has enhanced support for multiple database engines:
+
+- **DuckDB**: Included by default, ideal for local analysis
+- **PostgreSQL**: Install with `pip install sparvi-core[postgres]`
+- **Snowflake**: Install with `pip install sparvi-core[snowflake]`
+
+The library uses database-specific adapters to ensure that SQL queries are optimized for each database engine. This provides consistent results while taking advantage of each database's specific features.
+
+For example, Sparvi automatically adapts:
+- Regular expression syntax
+- Date/time functions
+- Percentile calculations
+- String operations
+
+This means you can profile and validate your data using the same API regardless of the underlying database.
+
+## Database Compatibility
+
+### PostgreSQL Considerations
+
+When working with PostgreSQL, keep in mind:
+
+- For date difference functions, we use PostgreSQL's `DATE_PART` function
+- Regex pattern matching uses PostgreSQL's `~` operator
+- When using the `FILTER` clause, ensure you have PostgreSQL 9.4 or higher
+
+### Snowflake Considerations
+
+When working with Snowflake, keep in mind:
+
+- Regex pattern matching uses Snowflake's `REGEXP_LIKE` function
+- String functions may behave slightly differently than in PostgreSQL or DuckDB
+- To optimize performance with large Snowflake tables, consider using warehouse sizing options
+
+### Testing Your Setup
+
+To verify your database connection and functionality, you can use:
+
+```python
+from sparvi.db.adapters import get_adapter_for_connection
+
+# Test connection with a simple query
+engine = create_engine("your_connection_string")
+adapter = get_adapter_for_connection(engine)
+print(f"Connected to: {adapter.__class__.__name__}")
+```
 
 ### Contributing
 

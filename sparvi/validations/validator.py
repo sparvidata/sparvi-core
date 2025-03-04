@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 
 from sqlalchemy import create_engine, text
+from sparvi.db.adapters import get_adapter_for_connection
 
 
 def load_rules_from_file(file_path: Union[str, Path]) -> List[Dict[str, Any]]:
@@ -76,6 +77,7 @@ def run_validations(connection_str: str, validation_rules: List[Dict[str, Any]])
         List of validation result dictionaries
     """
     engine = create_engine(connection_str)
+    adapter = get_adapter_for_connection(engine)  # Get the appropriate SQL adapter
     results = []
 
     for rule in validation_rules:

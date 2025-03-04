@@ -1,6 +1,3 @@
-"""
-Core profiler engine for Sparvi
-"""
 import datetime
 import json
 from typing import Dict, Any, List, Optional, Tuple, Union
@@ -8,6 +5,8 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine, inspect, text
+
+from sparvi.db.adapters import get_adapter_for_connection
 
 
 def profile_table(
@@ -31,27 +30,20 @@ def profile_table(
     """
     print(f"Starting profiling for table: {table}")
     engine = create_engine(connection_str)
+    adapter = get_adapter_for_connection(engine)  # Get the appropriate SQL adapter
     inspector = inspect(engine)
     columns = inspector.get_columns(table)
     column_names = [col["name"] for col in columns]
 
-    # Categorize columns
+    # Categorize columns using adapter methods for type checking
     numeric_cols = [col["name"] for col in columns if
-                    str(col["type"]).startswith("INT") or
-                    str(col["type"]).startswith("FLOAT") or
-                    str(col["type"]).startswith("NUMERIC") or
-                    str(col["type"]).startswith("DECIMAL") or
-                    str(col["type"]).startswith("DOUBLE")]
+                    adapter.is_numeric_type(str(col["type"]))]
 
     text_cols = [col["name"] for col in columns if
-                 str(col["type"]).startswith("VARCHAR") or
-                 str(col["type"]).startswith("TEXT") or
-                 str(col["type"]).startswith("CHAR")]
+                 adapter.is_text_type(str(col["type"]))]
 
     date_cols = [col["name"] for col in columns if
-                 str(col["type"]).startswith("DATE") or
-                 str(col["type"]).startswith("TIMESTAMP") or
-                 str(col["type"]).startswith("TIME")]
+                adapter.is_date_type(str(col["type"]))]
 
     with engine.connect() as conn:
         # Create separate queries for basic metrics
@@ -89,16 +81,17 @@ def profile_table(
         numeric_stats = {}
         for col in numeric_cols:
             print(f"Processing numeric column: {col}")
+            # Use adapter for stddev and percentile functions
             stats_query = f"""
             SELECT 
                 MIN({col}) AS min_val, 
                 MAX({col}) AS max_val, 
                 AVG({col}) AS avg_val, 
                 SUM({col}) AS sum_val, 
-                STDDEV({col}) AS stdev_val,
-                PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY {col}) AS q1_val,
-                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {col}) AS median_val,
-                PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY {col}) AS q3_val
+                {adapter.stddev_function(col)} AS stdev_val,
+                {adapter.percentile_query(col, 0.25)} AS q1_val,
+                {adapter.percentile_query(col, 0.5)} AS median_val,
+                {adapter.percentile_query(col, 0.75)} AS q3_val
             FROM {table}
             """
             try:
@@ -115,7 +108,7 @@ def profile_table(
                 }
             except Exception as e:
                 print(f"Error getting numeric stats for {col}: {str(e)}")
-                # Fallback to simpler statistics query without percentiles if the database doesn't support them
+                # Fallback to simpler statistics query without percentiles if there was an error
                 try:
                     simple_stats_query = f"""
                     SELECT 
@@ -143,16 +136,16 @@ def profile_table(
                         "stdev": None, "q1": None, "median": None, "q3": None
                     }
 
-        # Text Lengths
+        # Text Lengths - use adapter for length function
         print("Calculating text statistics...")
         text_length_stats = {}
         for col in text_cols:
             print(f"Processing text column: {col}")
             try:
                 length_query = f"""
-                SELECT MIN(LENGTH({col})) AS min_length, 
-                       MAX(LENGTH({col})) AS max_length, 
-                       AVG(LENGTH({col})) AS avg_length
+                SELECT MIN({adapter.length_function(col)}) AS min_length, 
+                       MAX({adapter.length_function(col)}) AS max_length, 
+                       AVG({adapter.length_function(col)}) AS avg_length
                 FROM {table}
                 """
                 length_result = conn.execute(text(length_query)).fetchone()
@@ -167,15 +160,20 @@ def profile_table(
                     "min_length": None, "max_length": None, "avg_length": None
                 }
 
-        # Pattern recognition for text columns
+        # Pattern recognition for text columns - use adapter for regex
         print("Analyzing text patterns...")
         text_patterns = {}
         for col in text_cols:
             try:
-                # Use a simpler approach to check patterns that should work across more database types
+                # Use adapter for regex matching
                 email_pattern = f"SELECT COUNT(*) FROM {table} WHERE {col} LIKE '%@%.%'"
-                numeric_pattern = f"SELECT COUNT(*) FROM {table} WHERE {col} ~ '^[0-9]+$'"
-                date_pattern = f"SELECT COUNT(*) FROM {table} WHERE {col} ~ '^\\d{{4}}-\\d{{2}}-\\d{{2}}$'"
+
+                # Define regex patterns as regular strings
+                numeric_regex = '^[0-9]+$'
+                date_regex = '^\\d{4}-\\d{2}-\\d{2}$'
+
+                numeric_pattern = f"SELECT COUNT(*) FROM {table} WHERE {adapter.regex_match(col, numeric_regex)}"
+                date_pattern = f"SELECT COUNT(*) FROM {table} WHERE {adapter.regex_match(col, date_regex)}"
 
                 # Execute each pattern check separately
                 try:
@@ -206,12 +204,11 @@ def profile_table(
                     "date_pattern_count": 0
                 }
 
-        # Date range check for date columns
+        # Date range check for date columns - use adapter for date difference
         print("Analyzing date columns...")
         date_stats = {}
         for col in date_cols:
             try:
-                # First try a database-agnostic approach
                 date_query = f"""
                 SELECT MIN({col}) AS min_date, 
                        MAX({col}) AS max_date, 
@@ -220,14 +217,13 @@ def profile_table(
                 """
                 date_result = conn.execute(text(date_query)).fetchone()
 
-                # Some databases might not support DATEDIFF directly
                 min_date = date_result[0]
                 max_date = date_result[1]
                 date_range_days = None
                 if min_date and max_date:
                     try:
-                        # Try to calculate date difference with database function
-                        diff_query = f"SELECT DATEDIFF('day', MIN({col}), MAX({col})) FROM {table}"
+                        # Use adapter for date difference
+                        diff_query = f"SELECT {adapter.date_diff('day', f'MIN({col})', f'MAX({col})')} FROM {table}"
                         diff_result = conn.execute(text(diff_query)).fetchone()
                         date_range_days = diff_result[0] if diff_result else None
                     except:
@@ -489,20 +485,9 @@ def detect_schema_shifts(current_profile: Dict, historical_profile: Dict) -> Lis
                 "severity": "high",
                 "timestamp": current_profile["timestamp"]
             })
-        elif not was_date and is_date:
-            shifts.append({
-                "type": "type_changed",
-                "column": col,
-                "description": f"Column {col} changed from non-date to date",
-                "from_type": "non-date",
-                "to_type": "date",
-                "severity": "high",
-                "timestamp": current_profile["timestamp"]
-            })
 
-        # Check if a text column's max length has changed significantly
-        if col in current_profile.get("text_length_stats", {}) and col in historical_profile.get("text_length_stats",
-                                                                                                 {}):
+#        Check if a text column's max length has changed significantly
+        if col in current_profile.get("text_length_stats", {}) and col in historical_profile.get("text_length_stats", {}):
             current_max = current_profile["text_length_stats"][col].get("max_length")
             historical_max = historical_profile["text_length_stats"][col].get("max_length")
 
