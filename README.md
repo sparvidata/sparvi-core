@@ -1,8 +1,28 @@
 # Sparvi Core
 
-Sparvi Core is a Python library for data profiling and validation in modern data warehouses.
-Like a hawk keeping watch over your data, Sparvi monitors data pipelines, detects anomalies,
-tracks schema changes, and ensures data integrity with sharp precision.
+[![PyPI version](https://badge.fury.io/py/sparvi-core.svg)](https://badge.fury.io/py/sparvi-core)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+> Like a hawk keeping watch over your data, Sparvi monitors data pipelines, detects anomalies, tracks schema changes, and ensures data integrity with sharp precision.
+
+Sparvi Core is a Python library for data profiling and validation in modern data warehouses. It helps data engineers and analysts maintain high-quality data by monitoring schema changes, detecting anomalies, and validating data against custom rules.
+
+## Features
+
+### Data Profiling
+
+- **Automated Metrics**: Compute essential quality metrics (null rates, duplicates, outliers) to understand your data's health at a glance
+- **Schema Analysis**: Detect column types, relationships, and constraints
+- **Distribution Analysis**: Understand the distribution of values in your data
+- **Historical Comparisons**: Compare current profiles with previous runs to detect changes
+- **Anomaly Detection**: Automatically detect anomalies in your data
+
+### Data Validation
+
+- **Custom Validation Rules**: Define and run your own validation rules
+- **SQL-Based Rules**: Use SQL to define validation queries
+- **Default Rules Generator**: Automatically generate sensible validation rules based on your data
+- **Detailed Results**: Get comprehensive information about validation failures
 
 ## Installation
 
@@ -96,25 +116,16 @@ for result in results:
         print(f"  Expected: {result['expected_value']}, Actual: {result['actual_value']}")
 ```
 
-## Features
+### Supported Databases
 
-Sparvi Core provides the following features:
+- DuckDB
+- PostgreSQL
+- Snowflake
+- More coming soon!
 
-### Data Profiling
+### Contributing
 
-- **Automated Data Profiling**: Compute essential quality metrics (null rates, duplicates, outliers) to understand your data's health at a glance
-- **Schema Analysis**: Detect column types, relationships, and constraints
-- **Distribution Analysis**: Understand the distribution of values in your data
-- **Historical Comparisons**: Compare current profiles with previous runs to detect changes
-- **Anomaly Detection**: Automatically detect anomalies in your data
+- Contributions are welcome! Please feel free to submit a Pull Request
 
-### Data Validation
-
-- **Custom Validation Rules**: Define and run your own validation rules
-- **SQL-Based Rules**: Use SQL to define validation queries
-- **Default Validation Rules**: Automatically generate sensible validation rules based on your data
-- **Validation Results**: Get detailed information about validation failures
-
-## License
-
+### License
 Apache License 2.0

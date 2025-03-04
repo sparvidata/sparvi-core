@@ -1,19 +1,23 @@
-"""
-Test fixtures and configuration for Sparvi Core tests.
-"""
 import os
 import pytest
-import tempfile
 import duckdb
 import pandas as pd
+import tempfile
+import uuid
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def sample_db_path():
-    """Create a temporary in-memory DuckDB database with sample data for testing."""
-    # Use in-memory database for testing
-    db_path = ":memory:"
-    conn = duckdb.connect(db_path)
-
+    """Create a DuckDB database file in the user home directory."""
+    # Create a test directory in the current project folder
+    test_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
+    os.makedirs(test_dir, exist_ok=True)
+    
+    # Create a unique filename
+    db_file = os.path.join(test_dir, f"test_{uuid.uuid4().hex}.duckdb")
+    
+    # Create connection and tables
+    conn = duckdb.connect(db_file)
+    
     # Create test data
     employees_data = {
         "id": range(1, 11),
@@ -37,21 +41,13 @@ def sample_db_path():
 
     products_df = pd.DataFrame(products_data)
     conn.execute("CREATE TABLE products AS SELECT * FROM products_df")
-
-    # Create a file in a temporary directory
-    temp_dir = tempfile.mkdtemp()
-    db_file = os.path.join(temp_dir, "test.duckdb")
-
-    # Save the in-memory database to a file
-    conn.execute(f"EXPORT DATABASE '{db_file}'")
     conn.close()
-
-    # Return the path to the database
+    
+    # Return the connection string for the database file
     yield f"duckdb:///{db_file}"
-
-    # Clean up after the test
+    
+    # Clean up
     try:
         os.remove(db_file)
-        os.rmdir(temp_dir)
     except:
         pass  # Ignore cleanup errors

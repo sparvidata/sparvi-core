@@ -1,5 +1,15 @@
 """
-Sparvi - Data profiling and validation engine for modern data warehouses
+Sparvi Core - Data profiling and validation engine for modern data warehouses
+
+Sparvi helps data engineers and analysts maintain high-quality data by monitoring
+schema changes, detecting anomalies, and validating data against custom rules.
+Like a hawk keeping watch over your data, Sparvi ensures data integrity with
+precision and vigilance.
+
+Main components:
+- Profiler: Analyze and monitor data quality metrics
+- Validator: Define and run custom validation rules
+- CLI: Command-line interface for easy integration
 """
 
 from sparvi.version import __version__
