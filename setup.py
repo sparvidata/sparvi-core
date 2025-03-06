@@ -15,7 +15,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Sparvi Team",
     author_email="info@sparvi.io",
-    url="https://github.com/sparvi-io/sparvi-core",
+    url="https://github.com/sparvidata/sparvi-core",
     packages=find_packages(include=["sparvi", "sparvi.*"]),
     classifiers=[
         "Development Status :: 4 - Beta",
