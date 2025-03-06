@@ -1,8 +1,8 @@
 Metadata-Version: 2.2
 Name: sparvi-core
-Version: 0.4.0
+Version: 0.4.1
 Summary: Data profiling and validation engine for modern data warehouses
-Home-page: https://github.com/sparvi-io/sparvi-core
+Home-page: https://github.com/sparvidata/sparvi-core
 Author: Sparvi Team
 Author-email: info@sparvi.io
 Classifier: Development Status :: 4 - Beta
