@@ -5,7 +5,7 @@ import pytest
 from sparvi.validations.validator import run_validations
 from sparvi.validations.default_validations import get_default_validations
 
-
+#
 def test_simple_validation(sample_db_path):
     """Test running a simple validation rule."""
     # Define a simple validation rule
