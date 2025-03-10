@@ -22,7 +22,11 @@ console = Console()
 )
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool) -> None:
-    """Main CLI entrypoint for Sparvi."""
+    """Main CLI entrypoint for Sparvi.
+
+    Example:
+      sparvi profile "snowflake://user:pass@account/database/schema?warehouse=wh" customers
+    """
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
 
