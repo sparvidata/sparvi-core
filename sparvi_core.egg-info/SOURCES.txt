@@ -6,6 +6,7 @@ pyproject.toml
 requirements.txt
 setup.py
 sparvi/__init__.py
+sparvi/config.py
 sparvi/version.py
 sparvi/cli/__init__.py
 sparvi/cli/main.py
@@ -13,10 +14,12 @@ sparvi/cli/profile.py
 sparvi/cli/validate.py
 sparvi/db/__init__.py
 sparvi/db/adapters.py
+sparvi/db/connection.py
 sparvi/profiler/__init__.py
 sparvi/profiler/profile_engine.py
 sparvi/utils/__init__.py
 sparvi/utils/db_utils.py
+sparvi/utils/env.py
 sparvi/validations/__init__.py
 sparvi/validations/default_validations.py
 sparvi/validations/validator.py
@@ -30,4 +33,5 @@ sparvi_core.egg-info/top_level.txt
 tests/test_cli.py
 tests/test_db.py
 tests/test_profiler.py
+tests/test_snowflake.py
 tests/test_validations.py
