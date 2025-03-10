@@ -22,7 +22,7 @@ class SqlAdapter:
             dialect = connection_string_or_engine.split(':')[0].lower()
 
             # Handle unknown dialect without creating engine
-            if dialect not in ['postgresql', 'postgres', 'duckdb', 'sqlite', 'snowflake']:
+            if dialect not in ['postgresql', 'postgres', 'duckdb', 'sqlite', 'snowflake', 'bigquery', 'redshift']:
                 return GenericAdapter()
 
             # For known dialects, create the engine
@@ -33,10 +33,15 @@ class SqlAdapter:
             dialect = engine.dialect.name.lower()
 
         # Return the appropriate adapter based on dialect
+        # Prioritize Snowflake as the default
         if 'snowflake' in dialect:
             return SnowflakeAdapter()
         elif 'postgres' in dialect or 'postgresql' in dialect:
             return PostgresAdapter()
+        elif 'redshift' in dialect:
+            return RedshiftAdapter()
+        elif 'bigquery' in dialect:
+            return BigQueryAdapter()
         elif 'duckdb' in dialect:
             return DuckDBAdapter()
         elif 'sqlite' in dialect:
@@ -113,6 +118,31 @@ class SqlAdapter:
         """
         raise NotImplementedError("Subclasses must implement stddev_function")
 
+    def sample_query(self, table: str, limit: int) -> str:
+        """
+        Generate SQL for efficiently sampling rows from a table.
+
+        Args:
+            table: Table name
+            limit: Maximum number of rows to sample
+
+        Returns:
+            SQL query for efficient sampling
+        """
+        return f"SELECT * FROM {table} LIMIT {limit}"
+
+    def aggregate_array(self, column: str) -> str:
+        """
+        Generate SQL for aggregating values into an array.
+
+        Args:
+            column: Column name
+
+        Returns:
+            SQL fragment for array aggregation
+        """
+        raise NotImplementedError("Subclasses must implement aggregate_array")
+
     def is_numeric_type(self, col_type: str) -> bool:
         """
         Check if a column type is numeric.
@@ -124,7 +154,7 @@ class SqlAdapter:
             True if the column type is numeric, False otherwise
         """
         col_type = col_type.lower()
-        return any(t in col_type for t in ['int', 'float', 'numeric', 'double', 'decimal'])
+        return any(t in col_type for t in ['int', 'float', 'numeric', 'double', 'decimal', 'number'])
 
     def is_date_type(self, col_type: str) -> bool:
         """
@@ -153,6 +183,37 @@ class SqlAdapter:
         return any(t in col_type for t in ['varchar', 'char', 'text', 'string'])
 
 
+class SnowflakeAdapter(SqlAdapter):
+    """Adapter for Snowflake."""
+
+    def percentile_query(self, column: str, percentile: float) -> str:
+        return f"PERCENTILE_CONT({percentile}) WITHIN GROUP (ORDER BY {column})"
+
+    def regex_match(self, column: str, pattern: str) -> str:
+        return f"REGEXP_LIKE({column}, '{pattern}')"
+
+    def date_diff(self, unit: str, start_date: str, end_date: str) -> str:
+        return f"DATEDIFF('{unit}', {start_date}, {end_date})"
+
+    def length_function(self, column: str) -> str:
+        return f"LENGTH({column})"
+
+    def stddev_function(self, column: str) -> str:
+        return f"STDDEV({column})"
+
+    def sample_query(self, table: str, limit: int) -> str:
+        # Use Snowflake's efficient sampling
+        return f"SELECT * FROM {table} SAMPLE ({limit} ROWS)"
+
+    def aggregate_array(self, column: str) -> str:
+        return f"ARRAY_AGG({column})"
+
+    def optimize_query(self, query: str) -> str:
+        """Apply Snowflake-specific query optimizations."""
+        # This can be expanded with more optimizations
+        return query
+
+
 class DuckDBAdapter(SqlAdapter):
     """Adapter for DuckDB."""
 
@@ -170,6 +231,9 @@ class DuckDBAdapter(SqlAdapter):
 
     def stddev_function(self, column: str) -> str:
         return f"STDDEV({column})"
+
+    def aggregate_array(self, column: str) -> str:
+        return f"LIST({column})"
 
 
 class PostgresAdapter(SqlAdapter):
@@ -198,24 +262,68 @@ class PostgresAdapter(SqlAdapter):
     def stddev_function(self, column: str) -> str:
         return f"STDDEV({column})"
 
+    def aggregate_array(self, column: str) -> str:
+        return f"ARRAY_AGG({column})"
 
-class SnowflakeAdapter(SqlAdapter):
-    """Adapter for Snowflake."""
+
+class RedshiftAdapter(SqlAdapter):
+    """Adapter for Amazon Redshift."""
 
     def percentile_query(self, column: str, percentile: float) -> str:
-        return f"PERCENTILE_CONT({percentile}) WITHIN GROUP (ORDER BY {column})"
+        # Redshift does not support PERCENTILE_CONT directly, use approximate percentile
+        return f"APPROXIMATE PERCENTILE_DISC({percentile}) WITHIN GROUP (ORDER BY {column})"
 
     def regex_match(self, column: str, pattern: str) -> str:
-        return f"REGEXP_LIKE({column}, '{pattern}')"
+        # Redshift uses REGEXP for regex matching
+        return f"{column} REGEXP '{pattern}'"
 
     def date_diff(self, unit: str, start_date: str, end_date: str) -> str:
-        return f"DATEDIFF('{unit}', {start_date}, {end_date})"
+        # Redshift uses DATEDIFF function
+        return f"DATEDIFF({unit}, {start_date}, {end_date})"
+
+    def length_function(self, column: str) -> str:
+        return f"LEN({column})"
+
+    def stddev_function(self, column: str) -> str:
+        return f"STDDEV_SAMP({column})"
+
+    def sample_query(self, table: str, limit: int) -> str:
+        # Use Redshift's random sampling
+        return f"SELECT * FROM {table} ORDER BY RANDOM() LIMIT {limit}"
+
+    def aggregate_array(self, column: str) -> str:
+        # Redshift doesn't directly support array aggregation, use LISTAGG as workaround
+        return f"LISTAGG({column}, ',')"
+
+
+class BigQueryAdapter(SqlAdapter):
+    """Adapter for Google BigQuery."""
+
+    def percentile_query(self, column: str, percentile: float) -> str:
+        # BigQuery uses PERCENTILE_CONT for percentile calculation
+        return f"PERCENTILE_CONT({column}, {percentile}) OVER()"
+
+    def regex_match(self, column: str, pattern: str) -> str:
+        # BigQuery uses REGEXP_CONTAINS for regex matching
+        return f"REGEXP_CONTAINS({column}, r'{pattern}')"
+
+    def date_diff(self, unit: str, start_date: str, end_date: str) -> str:
+        # BigQuery uses DATE_DIFF function
+        bq_unit = unit.upper()
+        return f"DATE_DIFF({end_date}, {start_date}, {bq_unit})"
 
     def length_function(self, column: str) -> str:
         return f"LENGTH({column})"
 
     def stddev_function(self, column: str) -> str:
         return f"STDDEV({column})"
+
+    def sample_query(self, table: str, limit: int) -> str:
+        # Use BigQuery's TABLESAMPLE clause
+        return f"SELECT * FROM {table} TABLESAMPLE SYSTEM (10 PERCENT) LIMIT {limit}"
+
+    def aggregate_array(self, column: str) -> str:
+        return f"ARRAY_AGG({column})"
 
 
 class SQLiteAdapter(SqlAdapter):
@@ -248,6 +356,10 @@ class SQLiteAdapter(SqlAdapter):
         # Consider implementing with a user-defined function if needed
         return f"0"
 
+    def aggregate_array(self, column: str) -> str:
+        # SQLite doesn't support array aggregation natively
+        return f"GROUP_CONCAT({column}, ',')"
+
 
 class GenericAdapter(SqlAdapter):
     """Generic adapter for other databases."""
@@ -270,6 +382,10 @@ class GenericAdapter(SqlAdapter):
     def stddev_function(self, column: str) -> str:
         return f"STDDEV({column})"
 
+    def aggregate_array(self, column: str) -> str:
+        # Default implementation, will need to be overridden for specific databases
+        return f"ARRAY_AGG({column})"
+
 
 # Utility functions
 def get_dialect_name(engine) -> str:
@@ -279,7 +395,7 @@ def get_dialect_name(engine) -> str:
 
 def is_supported_dialect(dialect_name: str) -> bool:
     """Check if the dialect is explicitly supported."""
-    supported = ['duckdb', 'postgresql', 'postgres', 'snowflake']
+    supported = ['snowflake', 'duckdb', 'postgresql', 'postgres', 'redshift', 'bigquery']
     return any(s in dialect_name for s in supported)
 
 
