@@ -47,6 +47,9 @@ def profile(
 
     CONNECTION_STRING: Database connection string (optional if env vars set)
     TABLE_NAME: Name of the table to profile
+
+    Example:
+      sparvi profile "snowflake://user:pass@account/database/schema" customers
     """
     verbose = ctx.obj.get("verbose", False)
 

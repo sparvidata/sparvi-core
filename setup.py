@@ -43,7 +43,6 @@ setup(
         "snowflake-sqlalchemy>=1.4.0",
     ],
     extras_require={
-        "snowflake": ["snowflake-sqlalchemy"],
         "postgres": ["psycopg2-binary"],
         "dev": [
             "pytest",
