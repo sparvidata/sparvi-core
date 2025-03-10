@@ -2,6 +2,10 @@
 
 All notable changes to Sparvi Core will be documented in this file.
 
+## [0.5.2] - 2025-03-10
+### Changed
+- Version bump
+
 ## [0.5.1] - 2025-03-09
 ### Changed
 - Version bump
