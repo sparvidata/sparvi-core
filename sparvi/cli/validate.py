@@ -17,12 +17,13 @@ from rich import box
 
 from sparvi.validations.validator import run_validations, load_rules_from_file
 from sparvi.validations.default_validations import get_default_validations
+from sparvi.utils.env import get_connection_from_env
 
 console = Console()
 
 
 @click.command()
-@click.argument("connection_string")
+@click.argument("connection_string", required=False)
 @click.argument("table_name")
 @click.option(
     "--rules", "-r",
@@ -52,7 +53,7 @@ console = Console()
 @click.pass_context
 def validate(
         ctx: click.Context,
-        connection_string: str,
+        connection_string: Optional[str],
         table_name: str,
         rules: Optional[Path],
         output: Optional[Path],
@@ -63,14 +64,28 @@ def validate(
     """
     Validate a database table against rules.
 
-    CONNECTION_STRING: Database connection string (e.g., duckdb:///path/to/db.duckdb)
+    CONNECTION_STRING: Database connection string (optional if env vars set)
     TABLE_NAME: Name of the table to validate
     """
     verbose = ctx.obj.get("verbose", False)
     validation_rules = []
 
+    # If no connection string provided, try to get from environment
+    if not connection_string:
+        connection_string = get_connection_from_env()
+        if not connection_string:
+            console.print("[bold red]Error:[/bold red] No connection string provided and no environment variables set.")
+            console.print("Please provide a connection string or set environment variables.")
+            console.print("\nFor Snowflake, set the following environment variables:")
+            console.print("  SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, SNOWFLAKE_DATABASE")
+            return
+
+    # Sanitize connection string for display
+    from sparvi.cli.main import sanitize_connection_string
+    display_connection = sanitize_connection_string(connection_string)
+
     console.print(f"[bold blue]Validating table:[/bold blue] [green]{table_name}[/green]")
-    console.print(f"[bold blue]Connection:[/bold blue] {connection_string}")
+    console.print(f"[bold blue]Connection:[/bold blue] {display_connection}")
 
     # Generate default rules if requested
     if generate_defaults:

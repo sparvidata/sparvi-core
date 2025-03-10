@@ -1,6 +1,3 @@
-"""
-CLI module for profile command
-"""
 import json
 import os
 from pathlib import Path
@@ -14,12 +11,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import box
 
 from sparvi.profiler.profile_engine import profile_table
+from sparvi.utils.env import get_connection_from_env
 
 console = Console()
 
 
 @click.command()
-@click.argument("connection_string")
+@click.argument("connection_string", required=False)
 @click.argument("table_name")
 @click.option(
     "--output", "-o", help="Output file path (JSON)", type=click.Path(path_type=Path)
@@ -37,7 +35,7 @@ console = Console()
 @click.pass_context
 def profile(
         ctx: click.Context,
-        connection_string: str,
+        connection_string: Optional[str],
         table_name: str,
         output: Optional[Path],
         compare: Optional[Path],
@@ -47,13 +45,27 @@ def profile(
     """
     Profile a database table.
 
-    CONNECTION_STRING: Database connection string (e.g., duckdb:///path/to/db.duckdb)
+    CONNECTION_STRING: Database connection string (optional if env vars set)
     TABLE_NAME: Name of the table to profile
     """
     verbose = ctx.obj.get("verbose", False)
 
+    # If no connection string provided, try to get from environment
+    if not connection_string:
+        connection_string = get_connection_from_env()
+        if not connection_string:
+            console.print("[bold red]Error:[/bold red] No connection string provided and no environment variables set.")
+            console.print("Please provide a connection string or set environment variables.")
+            console.print("\nFor Snowflake, set the following environment variables:")
+            console.print("  SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, SNOWFLAKE_DATABASE")
+            return
+
+    # Sanitize connection string for display
+    from sparvi.cli.main import sanitize_connection_string
+    display_connection = sanitize_connection_string(connection_string)
+
     console.print(f"[bold blue]Profiling table:[/bold blue] [green]{table_name}[/green]")
-    console.print(f"[bold blue]Connection:[/bold blue] {connection_string}")
+    console.print(f"[bold blue]Connection:[/bold blue] {display_connection}")
 
     # Load previous profile for comparison if specified
     previous_profile = None
@@ -103,7 +115,6 @@ def profile(
         with open(output, "w") as f:
             json.dump(profile_results, f, indent=2)
         console.print(f"\nProfile saved to: [bold green]{output}[/bold green]")
-
 
 def _print_minimal_summary(profile_results):
     """Print a minimal summary of profile results."""
