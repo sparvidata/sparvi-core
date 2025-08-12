@@ -7,6 +7,8 @@
 
 Sparvi Core is a Python library for data profiling and validation in modern data warehouses. It helps data engineers and analysts maintain high-quality data by monitoring schema changes, detecting anomalies, and validating data against custom rules.
 
+**Supported Data Warehouses**: Snowflake, BigQuery, Redshift, PostgreSQL, DuckDB
+
 ## Features
 
 ### Data Profiling
@@ -27,17 +29,14 @@ Sparvi Core is a Python library for data profiling and validation in modern data
 ## Installation
 
 ```bash
-# Basic installation
+# Basic installation (includes Snowflake, BigQuery, Redshift, DuckDB support)
 pip install sparvi-core
 
-# With optimized support for Snowflake (recommended for Snowflake users)
-pip install sparvi-core[snowflake]
-
-# With support for PostgreSQL
+# With additional PostgreSQL support
 pip install sparvi-core[postgres]
 
-# With all extras
-pip install sparvi-core[snowflake,postgres]
+# With development tools
+pip install sparvi-core[dev]
 ```
 
 ## Quick Start
@@ -50,8 +49,14 @@ Profile a table:
 # Basic profiling with Snowflake
 sparvi profile "snowflake://user:pass@account/database/schema?warehouse=wh" orders
 
+# Basic profiling with BigQuery  
+sparvi profile "bigquery://project-id/dataset-name" customers
+
+# Basic profiling with Redshift
+sparvi profile "redshift://user:pass@host:5439/database" employees
+
 # Basic profiling with DuckDB
-sparvi profile "duckdb:///path/to/database.duckdb" employees
+sparvi profile "duckdb:///path/to/database.duckdb" products
 
 # Save the profile to a file
 sparvi profile "postgresql://user:pass@localhost/mydatabase" customers --output profile.json
@@ -66,14 +71,17 @@ Validate a table:
 # Generate and run default validations
 sparvi validate "snowflake://user:pass@account/database/schema?warehouse=wh" orders --generate-defaults
 
+# BigQuery validation with custom rules
+sparvi validate "bigquery://project-id/dataset-name" customers --rules rules.yaml
+
+# Redshift validation with output
+sparvi validate "redshift://user:pass@host:5439/database" employees --rules rules.yaml --output results.json
+
 # Save the default rules to a YAML file
-sparvi validate "duckdb:///path/to/database.duckdb" employees --generate-defaults --save-defaults rules.yaml
+sparvi validate "duckdb:///path/to/database.duckdb" products --generate-defaults --save-defaults rules.yaml
 
 # Run validations from a file
 sparvi validate "postgresql://user:pass@localhost/mydatabase" customers --rules rules.yaml
-
-# Save validation results to a file
-sparvi validate "snowflake://user:pass@account/database/schema?warehouse=wh" orders --rules rules.yaml --output results.json
 ```
 
 ### Creating Custom Validations
@@ -308,11 +316,14 @@ results = run_validations("your_connection_string", saved_rules)
 
 ### Available Validation Operators
 
-Sparvi supports several comparison operators for validation rules:
+Sparvi supports several comparison operators for validation rules (both verbose and symbolic formats):
 
-- `equals`: Actual value must exactly match expected value
-- `greater_than`: Actual value must be greater than expected value
-- `less_than`: Actual value must be less than expected value
+- `equals` or `==`: Actual value must exactly match expected value
+- `greater_than` or `>`: Actual value must be greater than expected value  
+- `less_than` or `<`: Actual value must be less than expected value
+- `greater_than_or_equal` or `>=`: Actual value must be greater than or equal to expected value
+- `less_than_or_equal` or `<=`: Actual value must be less than or equal to expected value
+- `not_equals` or `!=`: Actual value must not match expected value
 - `between`: Actual value must be between a range (provide expected_value as [min, max])
 
 ### Working with Validation Results
@@ -492,6 +503,30 @@ When working with PostgreSQL, keep in mind:
 - For date difference functions, we use PostgreSQL's `DATE_PART` function
 - Regex pattern matching uses PostgreSQL's `~` operator
 - When using the `FILTER` clause, ensure you have PostgreSQL 9.4 or higher
+
+### BigQuery Considerations
+
+When working with BigQuery, Sparvi automatically:
+
+- Uses BigQuery's `PERCENTILE_CONT` for accurate percentile calculations
+- Employs `REGEXP_CONTAINS` for pattern matching with raw strings
+- Optimizes queries with `TABLESAMPLE SYSTEM` for large table sampling
+- Sets billing limits (1GB default) and location preferences (US default)
+- Uses `DATE_DIFF` function for date calculations
+
+Connection string format: `bigquery://project-id/dataset-name`
+
+### Redshift Considerations  
+
+When working with Redshift, Sparvi automatically:
+
+- Uses `APPROXIMATE PERCENTILE_DISC` for percentile calculations
+- Employs `REGEXP` operator for pattern matching
+- Optimizes sampling with `ORDER BY RANDOM()` 
+- Sets SSL connections by default for security
+- Uses `DATEDIFF` function for date calculations
+
+Connection string format: `redshift://user:password@host:port/database`
 
 ### DuckDB Considerations
 

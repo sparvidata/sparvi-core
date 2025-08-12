@@ -54,3 +54,5 @@ results.json
 # Backup files
 *~
 *.bak
+/rules.yaml
+/nul

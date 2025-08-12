@@ -68,46 +68,71 @@ def run_validations(connection_str: str, validation_rules: List[Dict[str, Any]])
     """
     Run custom validation rules defined by the user.
     Each rule should have a name, query, and expected result.
-
-    Args:
-        connection_str: Database connection string
-        validation_rules: List of validation rule dictionaries
-
-    Returns:
-        List of validation result dictionaries
     """
-    engine = create_engine(connection_str)
-    adapter = get_adapter_for_connection(engine)  # Get the appropriate SQL adapter
+    import os
+    if "DATABASE_URL" not in os.environ:
+        # Set a default or log a warning
+        os.environ["DATABASE_URL"] = connection_str  # Use the connection_string that's passed to the function
+        print(f"Warning: DATABASE_URL was not set, using provided connection string instead")
+
     results = []
 
-    for rule in validation_rules:
-        try:
-            with engine.connect() as conn:
-                query_result = conn.execute(text(rule["query"])).fetchone()
-                actual_value = query_result[0] if query_result else None
+    try:
+        engine = create_engine(connection_str)
+        # Test the connection
+        with engine.connect() as conn:
+            pass  # Just test if connection works
 
-                is_valid = False
-                if rule["operator"] == "equals":
-                    is_valid = actual_value == rule["expected_value"]
-                elif rule["operator"] == "greater_than":
-                    is_valid = actual_value > rule["expected_value"]
-                elif rule["operator"] == "less_than":
-                    is_valid = actual_value < rule["expected_value"]
-                elif rule["operator"] == "between":
-                    is_valid = rule["expected_value"][0] <= actual_value <= rule["expected_value"][1]
+        # Get the adapter for this connection type
+        adapter = get_adapter_for_connection(engine)
 
+        for rule in validation_rules:
+            try:
+                with engine.connect() as conn:
+                    # Use the adapter for any database-specific operations
+                    # For example, if needed for query transformation:
+                    # transformed_query = adapter.transform_query(rule["query"])
+
+                    query_result = conn.execute(text(rule["query"])).fetchone()
+                    actual_value = query_result[0] if query_result else None
+
+                    is_valid = False
+                    if rule["operator"] == "equals" or rule["operator"] == "==":
+                        is_valid = actual_value == rule["expected_value"]
+                    elif rule["operator"] == "greater_than" or rule["operator"] == ">":
+                        is_valid = actual_value > rule["expected_value"]
+                    elif rule["operator"] == "less_than" or rule["operator"] == "<":
+                        is_valid = actual_value < rule["expected_value"]
+                    elif rule["operator"] == "greater_than_or_equal" or rule["operator"] == ">=":
+                        is_valid = actual_value >= rule["expected_value"]
+                    elif rule["operator"] == "less_than_or_equal" or rule["operator"] == "<=":
+                        is_valid = actual_value <= rule["expected_value"]
+                    elif rule["operator"] == "not_equals" or rule["operator"] == "!=":
+                        is_valid = actual_value != rule["expected_value"]
+                    elif rule["operator"] == "between":
+                        is_valid = rule["expected_value"][0] <= actual_value <= rule["expected_value"][1]
+
+                    results.append({
+                        "name": rule["name"],
+                        "is_valid": is_valid,
+                        "actual_value": actual_value,
+                        "expected_value": rule["expected_value"],
+                        "description": rule.get("description", "")
+                    })
+            except Exception as e:
                 results.append({
-                    "rule_name": rule["name"],
-                    "is_valid": is_valid,
-                    "actual_value": actual_value,
-                    "expected_value": rule["expected_value"],
+                    "name": rule["name"],
+                    "is_valid": False,
+                    "error": str(e),
                     "description": rule.get("description", "")
                 })
-        except Exception as e:
+    except Exception as e:
+        # If the engine creation or adapter fails, return failure for all rules
+        for rule in validation_rules:
             results.append({
-                "rule_name": rule["name"],
+                "name": rule["name"],
                 "is_valid": False,
-                "error": str(e),
+                "error": f"Database connection error: {str(e)}",
                 "description": rule.get("description", "")
             })
 

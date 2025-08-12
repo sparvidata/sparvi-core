@@ -41,6 +41,9 @@ setup(
         "duckdb>=1.0.0",
         "duckdb-engine>=0.15.0",
         "snowflake-sqlalchemy>=1.4.0",
+        "sqlalchemy-bigquery>=1.4.0",
+        "google-cloud-bigquery>=3.0.0",
+        "sqlalchemy-redshift>=0.8.0",
     ],
     extras_require={
         "postgres": ["psycopg2-binary"],

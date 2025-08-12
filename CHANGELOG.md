@@ -2,6 +2,23 @@
 
 All notable changes to Sparvi Core will be documented in this file.
 
+## [0.6.0] - 2025-08-12
+### Added
+- Full BigQuery connection support with `sqlalchemy-bigquery` and `google-cloud-bigquery` drivers
+- Full Redshift connection support with `sqlalchemy-redshift` driver
+- BigQueryConnectionManager with optimized settings (location, billing limits, NullPool)
+- RedshiftConnectionManager with security defaults (SSL, timeouts)
+- Enhanced validation operator support: added symbolic operators (`>`, `<`, `==`, `>=`, `<=`, `!=`) alongside verbose names
+- Updated connection factory to route BigQuery/Redshift connections to specialized managers
+
+### Fixed
+- Validation logic now properly handles both symbolic (`>`) and verbose (`greater_than`) operators
+- Fixed issue where validation rules with symbolic operators would incorrectly default to `is_valid: false`
+
+### Changed
+- Extended requirements.txt to include BigQuery and Redshift SQLAlchemy drivers
+- Improved operator validation to support both formats for better user experience
+
 ## [0.5.2] - 2025-03-10
 ### Changed
 - Version bump

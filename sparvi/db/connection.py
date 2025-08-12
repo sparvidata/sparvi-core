@@ -192,6 +192,77 @@ class PostgresConnectionManager(ConnectionManager):
         )
 
 
+class BigQueryConnectionManager(ConnectionManager):
+    """Manages BigQuery connections."""
+
+    def get_engine(self, **kwargs) -> Engine:
+        """
+        Create SQLAlchemy engine for BigQuery with optimizations.
+
+        Args:
+            **kwargs: Additional arguments to pass to create_engine
+
+        Returns:
+            SQLAlchemy Engine instance for BigQuery
+        """
+        connect_args = kwargs.pop("connect_args", {})
+
+        # BigQuery-specific connection arguments
+        connect_args.update({
+            "client_info": {"application_name": "Sparvi"},
+        })
+
+        # Set default location if not specified
+        if "location" not in connect_args:
+            connect_args["location"] = "US"
+
+        # Set reasonable billing limit
+        if "maximum_bytes_billed" not in connect_args:
+            connect_args["maximum_bytes_billed"] = 1000000000  # 1GB
+
+        return create_engine(
+            self.connection_string,
+            connect_args=connect_args,
+            poolclass=kwargs.pop("poolclass", NullPool),  # BigQuery works well with NullPool
+            **kwargs
+        )
+
+
+class RedshiftConnectionManager(ConnectionManager):
+    """Manages Redshift connections."""
+
+    def get_engine(self, **kwargs) -> Engine:
+        """
+        Create SQLAlchemy engine for Redshift with optimizations.
+
+        Args:
+            **kwargs: Additional arguments to pass to create_engine
+
+        Returns:
+            SQLAlchemy Engine instance for Redshift
+        """
+        connect_args = kwargs.pop("connect_args", {})
+
+        # Redshift-specific connection arguments
+        connect_args.update({
+            "application_name": "Sparvi",
+        })
+
+        # Set SSL by default for security
+        if "sslmode" not in connect_args:
+            connect_args["sslmode"] = "require"
+
+        # Set connection timeout
+        if "connect_timeout" not in connect_args:
+            connect_args["connect_timeout"] = 30
+
+        return create_engine(
+            self.connection_string,
+            connect_args=connect_args,
+            **kwargs
+        )
+
+
 def get_connection_manager(connection_string: str) -> ConnectionManager:
     """
     Factory function to get the appropriate connection manager.
@@ -210,6 +281,10 @@ def get_connection_manager(connection_string: str) -> ConnectionManager:
         return PostgresConnectionManager(connection_string)
     elif "duckdb" in dialect:
         return DuckDBConnectionManager(connection_string)
+    elif "bigquery" in dialect:
+        return BigQueryConnectionManager(connection_string)
+    elif "redshift" in dialect:
+        return RedshiftConnectionManager(connection_string)
     else:
         # Default to base implementation for other database types
         return ConnectionManager(connection_string)
