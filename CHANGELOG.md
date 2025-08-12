@@ -9,7 +9,7 @@ All notable changes to Sparvi Core will be documented in this file.
 - BigQueryConnectionManager with optimized settings (location, billing limits, NullPool)
 - RedshiftConnectionManager with security defaults (SSL, timeouts)
 - Enhanced validation operator support: added symbolic operators (`>`, `<`, `==`, `>=`, `<=`, `!=`) alongside verbose names
-- Updated connection factory to route BigQuery/Redshift connections to specialized managers
+- Updated the connection factory to route BigQuery/Redshift connections to specialized managers
 
 ### Fixed
 - Validation logic now properly handles both symbolic (`>`) and verbose (`greater_than`) operators
