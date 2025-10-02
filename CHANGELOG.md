@@ -2,7 +2,7 @@
 
 All notable changes to Sparvi Core will be documented in this file.
 
-## 0.7.0 - 2025-10-02
+## 0.7.2 - 2025-10-02
 ### Added
 - **dbt Integration**: New `sparvi dbt upload` command to upload dbt artifacts (manifest.json, run_results.json) to Sparvi platform
 - `sparvi dbt list` command to list all dbt projects in organization
