@@ -2,6 +2,14 @@
 
 All notable changes to Sparvi Core will be documented in this file.
 
+## 0.7.0 - 2025-10-02
+### Added
+- **dbt Integration**: New `sparvi dbt upload` command to upload dbt artifacts (manifest.json, run_results.json) to Sparvi platform
+- `sparvi dbt list` command to list all dbt projects in organization
+- Auto-discovery of dbt artifacts in ./target/ directory
+- API key authentication support for CLI operations
+- Added httpx>=0.24.0 dependency for HTTP requests
+
 ## [0.6.0] - 2025-08-12
 ### Added
 - Full BigQuery connection support with `sqlalchemy-bigquery` and `google-cloud-bigquery` drivers

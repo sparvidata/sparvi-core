@@ -10,6 +10,7 @@ from rich.console import Console
 from sparvi.version import __version__
 from sparvi.cli.profile import profile
 from sparvi.cli.validate import validate
+from sparvi.cli.dbt import dbt
 from sparvi.utils.env import get_connection_from_env
 
 console = Console()
@@ -34,6 +35,7 @@ def cli(ctx: click.Context, verbose: bool) -> None:
 # Add subcommands
 cli.add_command(profile)
 cli.add_command(validate)
+cli.add_command(dbt)
 
 
 @cli.command()

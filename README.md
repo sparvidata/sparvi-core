@@ -26,6 +26,13 @@ Sparvi Core is a Python library for data profiling and validation in modern data
 - **Default Rules Generator**: Automatically generate sensible validation rules based on your data
 - **Detailed Results**: Get comprehensive information about validation failures
 
+### dbt Integration
+
+- **Upload dbt Artifacts**: Send your dbt manifest and run results to Sparvi platform
+- **Unified Monitoring**: See dbt tests alongside other data quality metrics
+- **CI/CD Ready**: Integrate into GitHub Actions, GitLab CI, Azure DevOps, etc.
+- **Automatic Discovery**: Finds manifest.json in ./target/ automatically
+
 ## Installation
 
 ```bash
@@ -40,6 +47,21 @@ pip install sparvi-core[dev]
 ```
 
 ## Quick Start
+
+### dbt Integration
+
+Upload your dbt artifacts to Sparvi:
+
+```bash
+# Run dbt
+dbt run && dbt test
+
+# Upload to Sparvi (requires SPARVI_API_KEY env var)
+sparvi dbt upload
+
+# Or specify API key explicitly
+sparvi dbt upload --api-key=sk_live_...
+```
 
 ### Command Line Interface
 
